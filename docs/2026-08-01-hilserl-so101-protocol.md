@@ -382,23 +382,48 @@ define N trials, a fixed initial-state distribution, and a success criterion **b
 
 ---
 
-## 4. Xbox gamepad mapping ⚠️
+## 4. Xbox gamepad — MEASURED mapping
 
-`gamepad_utils.py` hardcodes pygame indices for a Logitech F710. Against standard Xbox/`xpad`/SDL:
+Hardware: **Xbox Series X\|S controller, model 1914, USB `045e:0b12`**. pygame/SDL reports
+`get_name() == 'Xbox Series X Controller'`, 6 axes, 12 buttons. Measured 2026-08-01 with a
+deflection probe; these are observations, not inference.
 
-| Function | LeRobot index | Xbox actual | Status |
-|---|---|---|---|
-| Intervene | button 5 | RB | ✅ |
-| Success | button 3 | Y | ✅ |
-| Failure | button 1 | B | ⚠️ works, label differs |
-| Rerecord | button 0 | A | ⚠️ works, label differs |
-| Close gripper | button 6 | **Back** | ❌ |
-| Open gripper | button 7 | **Start** | ❌ |
-| Z axis | axis 3 | **right stick X** (Z is axis 4) | ❌ |
+| Index | Control | Evidence |
+|---|---|---|
+| axis 0 | left stick X | peak 1.03 |
+| axis 1 | left stick Y | peak 1.01; **up = −1.00** |
+| axis 2 | **LT — analog** | rest −1.00, peak deviation 2.00 |
+| axis 3 | right stick X | 0.17 (cross-talk only) |
+| **axis 4** | **right stick Y → Z** | peak 1.02; **up = −1.00** |
+| axis 5 | **RT — analog** | rest −1.00, peak deviation 2.00 |
+| btn 0/1/2/3 | A / B / X / Y | pressed in that order |
+| btn 4 | LB | |
+| **btn 5** | **RB → intervene** | |
+| btn 9/10 | left / right stick click | |
 
-`GamepadTeleopConfig` exposes only `use_gripper` — no mapping fields, so this means editing
-`gamepad_utils.py`. **Verify empirically in Phase 1**; the table above is inference from the
-standard mapping, not a measurement.
+**Consequences.**
+
+`'Xbox Series X Controller'` matches none of gym_hil's six profiles, so it falls back to
+`default` — which is badly wrong for this pad: `right_x: 2` reads the **left trigger**, and
+`right_y: 3` puts Z on the right stick's **horizontal** axis.
+
+The `'Xbox 360 Controller'` profile is correct on every axis and button that matters
+(`right_x: 3`, `right_y: 4`, `rb: 5`, `a/b/x/y: 0/1/2/3`). Its only flaw is `lt: 9` / `rt: 10`,
+which are the **stick clicks** — functional for gripper open/close, but poor ergonomics.
+
+**Schema gap worth raising in the PR:** on this controller the triggers are *analog axes*
+(2 and 5), and gym_hil's `controller_config.json` can only express `lt`/`rt` as **button
+indices**. So a correct profile cannot be pure JSON — either bind the gripper to stick-clicks
+and document it, or extend the schema to support axis-based triggers. The latter is the better
+contribution.
+
+**Inversion:** up reads −1.00 on both stick Y axes, so `right_y` inversion must be `true` for
+up = +Z. The X-axis inversions are *not* measured (the probe only held the sticks up) and are
+a robot-frame convention choice, not a hardware fact — set them by trying and flipping.
+
+**Separately**, LeRobot's *real-robot* path (`teleoperators/gamepad/gamepad_utils.py`) has no
+profile mechanism at all — it hardcodes Logitech F710 indices. Porting gym_hil's approach there
+is a distinct, well-motivated PR.
 
 ---
 
