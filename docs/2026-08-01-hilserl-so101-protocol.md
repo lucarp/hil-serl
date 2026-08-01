@@ -187,6 +187,29 @@ etc.) **do not exist in the repo** — verified. Get them from
 
 ### Phase 1 — Simulation smoke test **(do not skip)**
 
+> **BLOCKER FOUND 2026-08-01 — HIL-SERL does not start on v0.6.1 (`2aba372b`).**
+>
+> `python -m lerobot.rl.learner` dies at `learner.py:166`, the first statement after config
+> parsing: `logging.info(pformat(cfg.to_dict()))` → `draccus.encode` →
+> `TypeError: typing.Any cannot be used with isinstance()`.
+>
+> Cause: `envs/configs.py:284` declares `fixed_reset_joint_positions: Any | None = None`.
+> draccus's `encode` does `isinstance(obj, typing.get_origin(t) or t)`, and `typing.Any` cannot
+> be used with `isinstance`. **Every HIL-SERL config sets this field**, sim and real alike, so
+> the learner cannot start at all.
+>
+> Reproduced with the pristine shipped `train_config.json` and no overrides beyond
+> `--wandb.enable=false`. It is the *only* `Any` annotation in these config dataclasses, and
+> `gym_manipulator.py:346` consumes it solely as a list of floats — so the fix is one line:
+> `Any | None` → `list[float] | None`. Possibly related open issues: #2692, #2472.
+>
+> **Second blocker:** the actor needs a physically connected gamepad. Without one,
+> `GamepadController.start()` (`gym_hil/wrappers/intervention_utils.py`) prints "No gamepad
+> detected", sets `running = False`, and returns **without initialising `controller_config`**.
+> `update()` then raises `AttributeError: 'NoneType' object has no attribute 'get'` on a
+> background thread, which races the MuJoCo viewer thread and `glfw.terminate()` into a
+> **segfault**. A missing gamepad presents as a core dump, not a diagnostic.
+
 Run the full actor/learner stack against `gym_hil`'s Panda pick-cube task. No hardware at risk.
 
 Configs: `lerobot/config_examples` → `rl/gym_hil/env_config.json`, `rl/gym_hil/train_config.json`.
@@ -397,6 +420,24 @@ Ordered by expected cost.
 12. **STS3215 thermal cutout** — torque disables around 70 °C; HIL-SERL runs 500–750 back-to-back episodes, exactly that duty cycle. Looks like a policy failure, is a hardware failure. ⚠️ figures are vendor-sourced; monitor temperature directly.
 13. **Stale-tutorial schema errors** — `lerobot.scripts.rl.*` moved to `lerobot.rl.*`; flat env config → nested `env.processor.*`; reward classifier under `reward_model`, not `policy`.
 14. **SO-101 is not the platform HIL-SERL was developed on** — it was built on SO-100 and Koch. Issue #1387 (open) reports SO-101 state-dim mismatch and an IK state-caching bug. One reproducer's summary: *"basically nothing worked out of the box."* **Budget three weeks, not three days.**
+
+---
+
+## 5b. Upstream PR candidates
+
+Goal: at least one merged PR to LeRobot. These are ranked by ratio of value to risk. All were
+found by actually running the stack, so each comes with a reproduction.
+
+| Candidate | Why it's good |
+|---|---|
+| **`fixed_reset_joint_positions: Any \| None` → `list[float] \| None`** (`envs/configs.py:284`) | **Best candidate.** One line. Unblocks HIL-SERL entirely on current `main` — the learner cannot start without it. Verified reproduction, isolated cause, and you need the fix yourself. Check #2692 / #2472 first for overlap. |
+| **`GamepadController.start()` returns without setting `controller_config`** | A missing gamepad segfaults instead of erroring cleanly. Two-line guard. Lives in `huggingface/gym-hil`, so it's a second independent PR. |
+| **Port gym_hil's `controller_config.json` approach into `lerobot/teleoperators/gamepad/gamepad_utils.py`** | Sim maps controllers by name and ships an Xbox 360 profile; the real-robot path hardcodes Logitech indices. Small feature, clear motivation, and you need it for your own pad. |
+| **`hilserl.mdx`: `lerobot-find-joint-limits` example omits the required `--urdf_path`** | Pure doc fix. `FindJointLimitsConfig.urdf_path` has no default, so the documented command cannot run. |
+| **`hilserl.mdx`: four `src/lerobot/configs/*.json` paths that don't exist** | Pure doc fix; should point at the `lerobot/config_examples` Hub dataset. |
+| **`eval_policy.py:58` unpacks `make_robot_env()` as one value; it returns a 2-tuple** | Real bug fix, slightly more substantial. Verify by running it first. |
+
+Note the first three were found in ~2 hours of trying to run a smoke test. Expect more.
 
 ---
 
