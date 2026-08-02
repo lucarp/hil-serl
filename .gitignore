@@ -5,3 +5,8 @@ outputs/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# secrets - never commit
+.env
+.env.*
+!.env.example
