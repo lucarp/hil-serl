@@ -1371,8 +1371,6 @@ Report the intervention-rate curve. Report classifier-labelled success and human
 
 
 # Further Reading
-## Further reading
-
 ### The four papers this book is built on
 
 **Haarnoja, Zhou, Abbeel and Levine (2018), "Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor", ICML.** arXiv:1801.01290. The origin of the objective derived in Chapter 2 and the algorithm dissected in Chapter 3. Read Sections 3 and 4 alongside the derivation here; the notation in this book was chosen to match it wherever possible.
