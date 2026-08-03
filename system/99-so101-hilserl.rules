@@ -1,0 +1,24 @@
+# Stable device names for the HIL-SERL bench. Install:
+#   sudo cp system/99-so101-hilserl.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# Identification evidence (2026-08-03, this machine):
+# - Arm boards are CH343 serial adapters (1a86:55d3) with unique chip serials.
+#   Follower serial identified by unplug test (kernel log 21:19:22).
+# - Wrist camera is a Sonix module (05a3:9230), single video interface.
+# - Scene camera is a Lenovo Performance Camera (17ef:4839) with TWO camera
+#   interfaces: USB interface 00 = RGB, interface 02 = infrared (Windows
+#   Hello). The /dev/v4l/by-id/ links are ambiguous for this device (both
+#   interfaces claim the same name; IR wins). Match interface 00 explicitly.
+# - ATTR{index}=="0" selects the real capture node of an interface; index 1
+#   is the metadata node (never open it for frames).
+
+# Arms
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", ATTRS{serial}=="5B61033417", SYMLINK+="so101_leader"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", ATTRS{serial}=="5B3E090551", SYMLINK+="so101_follower"
+
+# Wrist camera (Sonix)
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="05a3", ATTRS{idProduct}=="9230", ATTR{index}=="0", SYMLINK+="cam_wrist"
+
+# Scene camera (Lenovo, RGB interface only - interface 02 is the IR sensor)
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="17ef", ATTRS{idProduct}=="4839", ENV{ID_USB_INTERFACE_NUM}=="00", ATTR{index}=="0", SYMLINK+="cam_scene"
