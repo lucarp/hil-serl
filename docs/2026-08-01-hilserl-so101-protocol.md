@@ -425,6 +425,38 @@ a robot-frame convention choice, not a hardware fact — set them by trying and 
 profile mechanism at all — it hardcodes Logitech F710 indices. Porting gym_hil's approach there
 is a distinct, well-motivated PR.
 
+### 4.1 Real-robot path: RESOLVED 2026-08-21 (verified end-to-end, locally patched)
+
+Probed through the actual `GamepadTeleop.get_action()` / `get_teleop_events()` API (the exact
+calls the RL recorder makes), not raw pygame. Findings against the stock code:
+
+| Stock code (F710 assumption) | On this pad | Verdict |
+|---|---|---|
+| `delta_z` ← axis 3 | axis 3 = right stick **horizontal** | **Bug** — Z was on sideways deflection; stick-up did nothing |
+| left stick → X/Y, axes 0/1, negated | same | correct as-is, signs verified |
+| gripper close/open ← buttons 6/7 | 6 = **View**, 7 = **Menu** (measured) | works unchanged; ergonomics acceptable |
+| success/failure/rerecord ← buttons 3/1/0 | Y / B / A | functional; printed help text is Logitech-ordered (says A=failure, X=rerecord) |
+| intervene ← hold button 5 | RB | correct |
+
+**Fix applied:** one character — `get_deltas()` reads axis **4** instead of 3. Committed as
+`1667afc2` on submodule branch **`local/hilserl`** (= `fix/reset-config-joint-positions-type`
+i.e. the PR #4297 fix, plus this patch). The venv is editable, so this branch is what runs;
+**never push it**. After the fix, verified live: stick-up → `delta_z = +1.0`, stick-down →
+`−1.0`, axis 3 inert, View → gripper CLOSE (0), Menu → gripper OPEN (2), RB → intervention.
+
+**Operator cheat sheet (Phase 4):** left stick = X/Y · right stick vertical = Z ·
+View = close gripper · Menu = open gripper · hold RB = intervene ·
+Y = success · B = failure · A = rerecord. Ignore the on-screen button help.
+
+**Deferred PR (optional, not on the training critical path):** branch
+`feat/gamepad-controller-profiles` is parked on upstream `main` (`223a8ad1`) in the fork.
+Agreed design: module-level profile dict keyed on `joystick.get_name()` with the current
+values as `"default"` fallback; Xbox entry with z=4, success/failure/rerecord = 3/0/2,
+gripper on **trigger axes** (RT=5 close, LT=2 open, threshold 0.5 — rest is −1.0, and 0.0
+before first touch); warning log on unknown-pad fallback. Related upstream: open PR #3174
+(Xbox via HID, direct joint control — different code path, complementary); two open mypy
+PRs touch this module (#4254, #4432).
+
 ---
 
 ## 5. Pitfall register (the ones that apply here)
@@ -457,7 +489,7 @@ found by actually running the stack, so each comes with a reproduction.
 |---|---|
 | **`fixed_reset_joint_positions: Any \| None` → `list[float] \| None`** (`envs/configs.py:284`) | **Best candidate.** One line. Unblocks HIL-SERL entirely on current `main` — the learner cannot start without it. Verified reproduction, isolated cause, and you need the fix yourself. Check #2692 / #2472 first for overlap. |
 | **`GamepadController.start()` returns without setting `controller_config`** | A missing gamepad segfaults instead of erroring cleanly. Two-line guard. Lives in `huggingface/gym-hil`, so it's a second independent PR. |
-| **Port gym_hil's `controller_config.json` approach into `lerobot/teleoperators/gamepad/gamepad_utils.py`** | Sim maps controllers by name and ships an Xbox 360 profile; the real-robot path hardcodes Logitech indices. Small feature, clear motivation, and you need it for your own pad. |
+| **Port gym_hil's `controller_config.json` approach into `lerobot/teleoperators/gamepad/gamepad_utils.py`** | Sim maps controllers by name and ships an Xbox 360 profile; the real-robot path hardcodes Logitech indices. Small feature, clear motivation, and you need it for your own pad. *Status 2026-08-21: branch `feat/gamepad-controller-profiles` parked with full design + measured values (§4.1); local one-char fix on `local/hilserl` unblocked training instead. Write whenever.* |
 | **`hilserl.mdx`: `lerobot-find-joint-limits` example omits the required `--urdf_path`** | Pure doc fix. `FindJointLimitsConfig.urdf_path` has no default, so the documented command cannot run. |
 | **`hilserl.mdx`: four `src/lerobot/configs/*.json` paths that don't exist** | Pure doc fix; should point at the `lerobot/config_examples` Hub dataset. |
 | **`eval_policy.py:58` unpacks `make_robot_env()` as one value; it returns a 2-tuple** | Real bug fix, slightly more substantial. Verify by running it first. |
