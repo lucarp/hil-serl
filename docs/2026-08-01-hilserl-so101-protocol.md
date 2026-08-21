@@ -421,6 +421,14 @@ contribution.
 up = +Z. The X-axis inversions are *not* measured (the probe only held the sticks up) and are
 a robot-frame convention choice, not a hardware fact — set them by trying and flipping.
 
+**Inversions settled empirically 2026-08-21** (flying the Panda pick-cube task from the
+default viewer camera): `left_x: true, left_y: true, right_x: false, right_y: true`.
+Stock `left_x: false` mirrored left/right. These are the values now in the local
+`.venv/.../gym_hil/controller_config.json` Xbox Series X profile (backup `.orig` beside it;
+**lost on venv rebuild** — restore from this note). Expect the same left/right check to be
+needed on the real robot in Phase 4; the real path hardcodes its negations in
+`gamepad_utils.py`, so a flip there is a local edit on `local/hilserl`.
+
 **Separately**, LeRobot's *real-robot* path (`teleoperators/gamepad/gamepad_utils.py`) has no
 profile mechanism at all — it hardcodes Logitech F710 indices. Porting gym_hil's approach there
 is a distinct, well-motivated PR.
