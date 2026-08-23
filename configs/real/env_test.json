@@ -1,0 +1,100 @@
+{
+  "env": {
+    "name": "real_robot",
+    "fps": 10,
+    "processor": {
+      "control_mode": "gamepad",
+      "max_gripper_pos": 100.0,
+      "observation": {
+        "display_cameras": false,
+        "add_joint_velocity_to_observation": false,
+        "add_current_to_observation": false,
+        "add_ee_pose_to_observation": false
+      },
+      "image_preprocessing": {
+        "crop_params_dict": {},
+        "resize_size": [
+          128,
+          128
+        ]
+      },
+      "gripper": {
+        "use_gripper": true,
+        "gripper_penalty": 0.0
+      },
+      "reset": {
+        "fixed_reset_joint_positions": [
+          -0.659,
+          -30.769,
+          17.978,
+          97.319,
+          -4.352,
+          59.644
+        ],
+        "reset_time_s": 5.0,
+        "control_time_s": 20.0,
+        "terminate_on_success": true
+      },
+      "inverse_kinematics": {
+        "urdf_path": "assets/SO-ARM100/Simulation/SO101/so101_new_calib.urdf",
+        "target_frame_name": "gripper_frame_link",
+        "end_effector_bounds": {
+          "min": [
+            0.0972,
+            -0.1786,
+            -0.0149
+          ],
+          "max": [
+            0.4288,
+            0.1962,
+            0.25
+          ]
+        },
+        "end_effector_step_sizes": {
+          "x": 0.02,
+          "y": 0.02,
+          "z": 0.02
+        }
+      }
+    },
+    "robot": {
+      "type": "so101_follower",
+      "port": "/dev/so101_follower",
+      "id": "follower_arm",
+      "cameras": {
+        "wrist": {
+          "type": "opencv",
+          "index_or_path": "/dev/cam_wrist",
+          "width": 640,
+          "height": 480,
+          "fps": 30,
+          "fourcc": "MJPG",
+          "backend": 200
+        },
+        "scene": {
+          "type": "opencv",
+          "index_or_path": "/dev/cam_scene",
+          "width": 640,
+          "height": 480,
+          "fps": 30,
+          "fourcc": "MJPG",
+          "backend": 200
+        }
+      }
+    },
+    "teleop": {
+      "type": "gamepad",
+      "use_gripper": true
+    }
+  },
+  "mode": null,
+  "device": "cpu",
+  "dataset": {
+    "repo_id": "lucarp/so101_ball_hole_test",
+    "task": "place_ball_in_circular_hole",
+    "root": null,
+    "num_episodes_to_record": 5,
+    "replay_episode": null,
+    "push_to_hub": false
+  }
+}
