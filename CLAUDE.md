@@ -13,7 +13,9 @@ The venv installs lerobot **editable** from the submodule, which must stay on br
 **`local/hilserl`** (= PR #4297 fix + Xbox Z-axis one-liner; **never push it**). PR branches
 in the submodule: `fix/reset-config-joint-positions-type` (#4297, open),
 `feat/gamepad-controller-profiles` (parked, design in protocol §4.1). Xbox pad controls:
-left stick X/Y, right stick vertical Z, View/Menu = close/open gripper, hold RB = intervene,
+left stick X/Y, right stick vertical Z, **LT/RT = close/open gripper** (View/Menu also work),
+hold RB = intervene (**required every step** - without it the pipeline records the neutral
+action `[0,0,0,1]` and the dataset is silently worthless),
 Y/B/A = success/failure/rerecord (on-screen help text is Logitech-ordered — ignore it).
 
 ## Stable device names
