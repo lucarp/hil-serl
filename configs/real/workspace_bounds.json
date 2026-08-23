@@ -41,5 +41,14 @@
     ]
   },
   "_z_ceiling_note": "raw sweep reached z=0.3646; trimmed to 0.25 (=26.5cm above the z_min floor of -0.0149) because the task needs only ~20cm of lift. Smaller box = less dead exploration volume.",
-  "_gripper_note": "Sweep showed gripper 0.28-11.03 only because the leader trigger was barely squeezed. Not a problem: follower gripper is fully calibrated (range_min 2046, range_max 3451) and during HIL-SERL the gripper is driven by the discrete gamepad action, not the leader. max_gripper_pos can stay at its default."
+  "_gripper_note": "Sweep showed gripper 0.28-11.03 only because the leader trigger was barely squeezed. Not a problem: follower gripper is fully calibrated (range_min 2046, range_max 3451) and during HIL-SERL the gripper is driven by the discrete gamepad action, not the leader. max_gripper_pos can stay at its default.",
+  "fixed_reset_joint_positions": [
+    -0.659,
+    -30.769,
+    17.978,
+    97.319,
+    -4.352,
+    59.644
+  ],
+  "_reset_pose_note": "Captured 2026-08-23 with torque holding the arm; gripper commanded to 60 (partially open) in software so the arm could not sag. Gripper frame sits 11.8 cm above the board floor, x=0.173 y=0.002 z=0.103, inside end_effector_bounds on all axes. Units: DEGREES, order shoulder_pan/shoulder_lift/elbow_flex/wrist_flex/wrist_roll/gripper. Demos MUST start from this exact pose or training breaks silently."
 }
