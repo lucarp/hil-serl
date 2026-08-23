@@ -1,0 +1,15 @@
+{
+  "_comment": "Phase 3 sweep, 2026-08-23. Ball-into-circular-hole table layout.",
+  "_source": "lerobot-find-joint-limits, follower_arm + leader_arm, target_frame_name=gripper_frame_link, 120s sweep",
+  "_units": "end_effector_bounds in metres (base frame); joint limits in DEGREES (the script's 'radians' label is wrong; use_degrees=True)",
+  "end_effector_bounds": {
+    "min": [0.0972, -0.1786, -0.0149],
+    "max": [0.4288, 0.1962, 0.3646]
+  },
+  "joint_limits_deg": {
+    "min": [-68.0879, -101.8901, -96.044, 9.7582, -8.3077, 0.2847],
+    "max": [45.2308, 75.7802, 96.3956, 100.3077, 32.3956, 11.032],
+    "order": ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
+  },
+  "_caveat_gripper": "gripper swept only 0.28-11.03 of its range; re-measure full open/close before setting max_gripper_pos"
+}
