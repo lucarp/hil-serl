@@ -40,6 +40,6 @@
       "gripper"
     ]
   },
-  "_caveat_gripper": "gripper swept only 0.28-11.03 of its range; re-measure full open/close before setting max_gripper_pos",
-  "_z_ceiling_note": "raw sweep reached z=0.3646; trimmed to 0.25 (=26.5cm above the z_min floor of -0.0149) because the task needs only ~20cm of lift. Smaller box = less dead exploration volume."
+  "_z_ceiling_note": "raw sweep reached z=0.3646; trimmed to 0.25 (=26.5cm above the z_min floor of -0.0149) because the task needs only ~20cm of lift. Smaller box = less dead exploration volume.",
+  "_gripper_note": "Sweep showed gripper 0.28-11.03 only because the leader trigger was barely squeezed. Not a problem: follower gripper is fully calibrated (range_min 2046, range_max 3451) and during HIL-SERL the gripper is driven by the discrete gamepad action, not the leader. max_gripper_pos can stay at its default."
 }
