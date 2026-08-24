@@ -40,14 +40,14 @@
         "target_frame_name": "gripper_frame_link",
         "end_effector_bounds": {
           "min": [
-            0.0972,
-            -0.1786,
-            -0.0149
+            0.09,
+            -0.09,
+            -0.015
           ],
           "max": [
-            0.4288,
-            0.1962,
-            0.25
+            0.32,
+            0.21,
+            0.16
           ]
         },
         "end_effector_step_sizes": {

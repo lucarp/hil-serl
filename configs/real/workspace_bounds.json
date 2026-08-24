@@ -4,14 +4,14 @@
   "_units": "end_effector_bounds in metres (base frame); joint limits in DEGREES (the script's 'radians' label is wrong; use_degrees=True)",
   "end_effector_bounds": {
     "min": [
-      0.0972,
-      -0.1786,
-      -0.0149
+      0.09,
+      -0.09,
+      -0.015
     ],
     "max": [
-      0.4288,
-      0.1962,
-      0.25
+      0.32,
+      0.21,
+      0.16
     ]
   },
   "joint_limits_deg": {
@@ -50,5 +50,6 @@
     -4.352,
     59.644
   ],
-  "_reset_pose_note": "Captured 2026-08-23 with torque holding the arm; gripper commanded to 60 (partially open) in software so the arm could not sag. Gripper frame sits 11.8 cm above the board floor, x=0.173 y=0.002 z=0.103, inside end_effector_bounds on all axes. Units: DEGREES, order shoulder_pan/shoulder_lift/elbow_flex/wrist_flex/wrist_roll/gripper. Demos MUST start from this exact pose or training breaks silently."
+  "_reset_pose_note": "Captured 2026-08-23 with torque holding the arm; gripper commanded to 60 (partially open) in software so the arm could not sag. Gripper frame sits 11.8 cm above the board floor, x=0.173 y=0.002 z=0.103, inside end_effector_bounds on all axes. Units: DEGREES, order shoulder_pan/shoulder_lift/elbow_flex/wrist_flex/wrist_roll/gripper. Demos MUST start from this exact pose or training breaks silently.",
+  "_box_note": "Shrunk 2026-08-24 from the raw leader sweep to the volume the 24 successful demos actually used (+~3cm). The swept box reached x=0.429, ~14cm beyond any demo, into the near-singular fully-extended region where the IK solution swings wildly between steps and the arm shakes. Smaller box also means far less dead exploration volume."
 }
