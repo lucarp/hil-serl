@@ -35,28 +35,36 @@ time and test against the known-good baseline.
 Also fixed today: a pinched servo loom in the base was causing grinding on shoulder_pan
 plus an intermittent bus (partial pings, failing reads). Reseated. Route it with slack.
 
-## Do this first tomorrow: learner throughput
+## Learner throughput — change APPLIED, needs measuring
 
 The learner is the bottleneck and it costs robot time directly.
 
 ```
 actor collects 10 env steps/s; utd_ratio 2 wants 20 optimization steps/s
-learner delivers ~7.8  ->  effective UTD 0.78, not 2
+run of 2026-08-24 delivered ~7.8  ->  effective UTD 0.78, not 2
 ```
 
-So each minute at the bench buys ~1/3 of the learning the config intends. Suspected cause
-is `policy.storage_device: "cpu"` — a batch is 256 x 2 cameras x 128x128 x float32 x
-(obs+next) ~= 200 MB, copied CPU->GPU ~8 times a second.
+So each minute at the bench bought ~1/3 of the learning the config intends. Suspected
+cause: `storage_device: "cpu"` meant every batch (256 x 2 cameras x 128x128 x float32 x
+(obs+next) ~= 200 MB) was copied CPU->GPU ~8 times a second, while the 4090 sat at 1.1 GB
+of 24 GB used.
 
-Change to try (configs/real/train_config.json), then watch the Hz line:
+**Already changed in configs/real/train_config.json:**
 
 ```json
-"policy": { "storage_device": "cuda", "online_buffer_capacity": 12000 }
+"storage_device": "cuda", "online_buffer_capacity": 12000, "offline_buffer_capacity": 4000
 ```
 
-GPU is a 24 GB 4090 with 22.9 GB free; 12000+4000 frames ~= 12.6 GB buffer + ~2 GB model.
-Do NOT leave online_buffer_capacity at 15000 with cuda storage — 14.9 GB is too tight.
-If it OOMs, drop to 10000. If Hz does not improve, revert; it is the transfer or not.
+Verified it allocates: learner starts clean, GPU 3.8 GB with the offline buffer resident,
+projecting ~13 GB once the online buffer fills. No OOM.
+
+**Not yet measured:** the Hz gain needs an actor feeding the learner. First thing on the
+next run, watch `Optimization frequency loop [Hz]`:
+- was ~7.8. If it climbs toward 15-20, the transfer was the bottleneck and robot time is
+  now worth ~2-3x more.
+- if it stays ~8, the bottleneck is compute or buffer sampling, not transfer — revert
+  storage_device to "cpu" (it costs GPU memory for nothing) and look at batch_size.
+- if it OOMs mid-run, drop online_buffer_capacity to 10000.
 
 ## Then: the long run
 
