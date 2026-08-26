@@ -15,7 +15,7 @@
     "disable_artifact": true
   },
   "dataset": {
-    "repo_id": "lucarp/so101_ball_circular_hole_cropped",
+    "repo_id": "lucarp/so101_cube_session2_clean",
     "use_imagenet_stats": false
   },
   "algorithm": {
@@ -122,20 +122,20 @@
       },
       "observation.state": {
         "min": [
-          -60.70329666137695,
-          -63.38461685180664,
-          -37.67033004760742,
-          38.68132019042969,
-          -64.04395294189453,
-          18.576513290405273
+          -61.230770111083984,
+          -75.07691955566406,
+          -80.3956069946289,
+          37.626373291015625,
+          -64.21977996826172,
+          3.7722420692443848
         ],
         "max": [
-          23.25274658203125,
-          31.384614944458008,
-          73.45054626464844,
+          35.38461685180664,
+          71.12088012695312,
+          81.45054626464844,
           97.23076629638672,
-          19.296703338623047,
-          97.93594360351562
+          31.78022003173828,
+          99.00355529785156
         ]
       },
       "action": {
@@ -159,7 +159,7 @@
     "shared_encoder": true,
     "online_steps": 1000000,
     "online_buffer_capacity": 12000,
-    "offline_buffer_capacity": 4000,
+    "offline_buffer_capacity": 12000,
     "online_step_before_learning": 100,
     "state_encoder_hidden_dim": 256,
     "latent_dim": 64,
@@ -224,7 +224,8 @@
           "fourcc": "MJPG",
           "backend": 200
         }
-      }
+      },
+      "max_relative_target": 10.0
     },
     "teleop": {
       "type": "gamepad",
@@ -283,7 +284,7 @@
           "min": [
             0.09,
             -0.09,
-            -0.015
+            0.0
           ],
           "max": [
             0.32,
@@ -294,7 +295,7 @@
         "end_effector_step_sizes": {
           "x": 0.02,
           "y": 0.02,
-          "z": 0.02
+          "z": 0.01
         }
       }
     },

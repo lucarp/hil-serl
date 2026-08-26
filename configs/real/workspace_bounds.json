@@ -6,7 +6,7 @@
     "min": [
       0.09,
       -0.09,
-      -0.015
+      0.0
     ],
     "max": [
       0.32,
@@ -51,5 +51,6 @@
     59.644
   ],
   "_reset_pose_note": "Captured 2026-08-23 with torque holding the arm; gripper commanded to 60 (partially open) in software so the arm could not sag. Gripper frame sits 11.8 cm above the board floor, x=0.173 y=0.002 z=0.103, inside end_effector_bounds on all axes. Units: DEGREES, order shoulder_pan/shoulder_lift/elbow_flex/wrist_flex/wrist_roll/gripper. Demos MUST start from this exact pose or training breaks silently.",
-  "_box_note": "Shrunk 2026-08-24 from the raw leader sweep to the volume the 24 successful demos actually used (+~3cm). The swept box reached x=0.429, ~14cm beyond any demo, into the near-singular fully-extended region where the IK solution swings wildly between steps and the arm shakes. Smaller box also means far less dead exploration volume."
+  "_box_note": "Shrunk 2026-08-24 from the raw leader sweep to the volume the 24 successful demos actually used (+~3cm). The swept box reached x=0.429, ~14cm beyond any demo, into the near-singular fully-extended region where the IK solution swings wildly between steps and the arm shakes. Smaller box also means far less dead exploration volume.",
+  "_floor_note": "Floor raised -0.015 -> 0.000 on 2026-08-26 after the gripper struck the table during autonomous action. Chosen from data, not intuition: FK over the 92 successful session-2 episodes puts the median success at z=+0.016 and p10 at +0.005, so a floor at +0.015 (the requested '3 cm above table') would have blocked 44.6% of successes and made the task silently unsolvable. 0.000 costs 2.2%. Hard contact is addressed by SPEED instead: z step size halved to 0.01 (10 cm/s descent) and max_relative_target=10 deg/joint/step below the IK."
 }

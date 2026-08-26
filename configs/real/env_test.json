@@ -42,7 +42,7 @@
           "min": [
             0.09,
             -0.09,
-            -0.015
+            0.0
           ],
           "max": [
             0.32,
@@ -53,7 +53,7 @@
         "end_effector_step_sizes": {
           "x": 0.02,
           "y": 0.02,
-          "z": 0.02
+          "z": 0.01
         }
       }
     },
@@ -80,7 +80,8 @@
           "fourcc": "MJPG",
           "backend": 200
         }
-      }
+      },
+      "max_relative_target": 10.0
     },
     "teleop": {
       "type": "gamepad",
