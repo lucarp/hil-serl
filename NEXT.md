@@ -198,3 +198,60 @@ outputs/hilserl_cube_run1/dataset            (115 eps, raw buffer dump)
 
 Also resume the policy rather than starting cold:
 `checkpoints/0014000` holds 14,000 optimization steps.
+
+---
+
+# Session 2026-08-26 (afternoon) — 230 episodes, no improvement yet
+
+```
+230 episodes · 24,000 optimization steps · 12 checkpoints · latest 0024000
+offline data: 92-episode demo set · GPU buffers · ~10 Hz (GPU free)
+intervention 65.9% (was 99.1%) · 4,090 autonomous frames (was ~109)
+wandb opp47yi6
+```
+
+**Success fell 74% -> 30% across the session. That is the intervention rate, not the
+policy.** Per-block, success tracks how much RB was held; comparing to the 82% of the
+previous session compares human flying to policy flying. No upward trend visible yet.
+
+## The structural problem: every session starts from scratch
+
+Session 1: 14,000 steps discarded. Session 2: 24,000 steps discarded (this one, unless
+resumed). The early-training phase keeps being repeated instead of accumulated.
+
+**Next session: RESUME.** It was correct to start fresh today (the dataset and its
+normalization changed). Nothing changes now, so:
+
+```json
+"resume": true
+```
+
+and launch against the same output_dir so it picks up `checkpoints/last` (0024000).
+Do NOT change `dataset.repo_id` or `dataset_stats` while resuming — a resumed policy
+carries a normalizer fitted to the current data; changing the data underneath it is
+exactly the inconsistency that made a fresh start right today.
+
+## Throughput, finally measured cleanly
+
+```
+CPU buffers                       7.8 Hz
+GPU buffers, sharing with the LLM 9.0 Hz
+GPU buffers, GPU free            10.0 Hz
+```
+The PCIe transfer was never the main bottleneck; the learner is compute-bound. ~28% total.
+
+**llama-server holds 20.9 GB of the 4090 and must be stopped before training** — with it
+running, even CPU-resident buffers OOM because the model and batch activations need a few
+GB. Restart it after training:
+
+```
+llama-server --model ~/local-llm/models/Qwen3.8-27B-UD-Q4_K_XL.gguf --alias qwen3.8-27b \
+  --host 127.0.0.1 --port 8080 --n-gpu-layers all --flash-attn on --ctx-size 131072 \
+  --cache-type-k q4_0 --cache-type-v q4_0 --spec-type draft-mtp ...
+```
+
+## Expectation setting
+
+The sim reached 100% after ~1,900 episodes / 32,000 steps. You are at 230 episodes with a
+policy that has seen 24,000 steps. Episodes, not gradient steps, are the scarce resource:
+~200/hour on hardware. Budget several accumulated hours, and resume every time.
