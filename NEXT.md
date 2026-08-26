@@ -113,3 +113,51 @@ Reward is the Y button — no classifier yet, so you are the reward function.
   trained now must run without them.
 - Upstream PR candidates queued: #4297 (open), crop_dataset_roi finalize + boundary fixes
   (committed on local/hilserl), the docs claiming leader-arm support that does not exist.
+
+---
+
+# Session 2026-08-26 — first checkpointed run
+
+```
+121 episodes · 94 rewarded · 14,000 optimization steps · 9.0 Hz
+7 checkpoints, latest outputs/hilserl_cube_run1/checkpoints/0014000
+wandb run jd6m1z4y
+```
+
+Still needs interventions throughout; releasing RB gives wild behaviour. Expected at
+121 episodes — the sim needed ~1,900.
+
+## Two bugs found and handled
+
+1. **Checkpointing killed the learner.** `save_training_checkpoint` writes the policy
+   weights fine, then dumps the replay buffers back out as PNGs; the buffer holds float
+   images in [0,255] while the dataset writer wants [0,1] or uint8. The exception
+   propagated and took down the training loop *after* the weights were already written.
+   Wrapped the dump in try/except in `rl/learner.py` — warns and continues.
+   **Upstream impact: any HIL-SERL run reaching its first checkpoint dies.** Hidden
+   because the shipped `save_freq` is 2,000,000, so it effectively never fires.
+   Good PR: either fix the dtype in `buffer.to_lerobot_dataset` or make the dump non-fatal.
+
+2. GPU-resident replay buffer gave only ~18% (7.8 -> 9.0 Hz), not the 2-3x hoped.
+   The PCIe transfer was not the main bottleneck; the learner is compute/sampling bound.
+   Keeping it (GPU has headroom, ~12 GB used of 24) but do not expect more from it.
+
+## Resuming — read this first
+
+`resume: true` + `--config_path` restores **policy weights and optimizer state**, NOT the
+replay buffer: the buffer dump is exactly what fails above, so the online buffer restarts
+empty. The demo dataset reloads normally. So a resumed run keeps everything the policy
+has *learned* but loses everything it has *experienced*.
+
+Practical consequence: prefer long single sessions over many short ones.
+
+## The intervention balance — important
+
+Holding RB the whole time collects an excellent demonstration set but teaches the critic
+nothing about which states are bad: only the human's (good) transitions enter the online
+buffer, so nothing pushes the actor away from flailing. Some autonomous-and-bad data is
+required for learning.
+
+Next session: release RB during **transit** (gripper high, away from the board) for 1-3 s
+at a time, keep it held during **approach and insertion** where a bad action costs
+hardware. The workspace box bounds the damage; the board is the remaining hazard.
