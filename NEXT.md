@@ -161,3 +161,40 @@ required for learning.
 Next session: release RB during **transit** (gripper high, away from the board) for 1-3 s
 at a time, keep it held during **approach and insertion** where a bad action costs
 hardware. The workspace box bounds the damage; the board is the remaining hazard.
+
+## Session 2 produced a much better demo set — use it
+
+You guided 99.1% of frames, so essentially all of session 2 is demonstration-quality.
+Filtered to successes only:
+
+```
+lucarp/so101_cube_session2_clean   92 episodes · 10,347 frames · 92/92 success
+```
+
+That is ~4x the original 24-demo set, from the identical scene, with faster episodes
+(10.4 s mean vs 14.5 s). Verified it loads via LeRobotDataset with correct shapes.
+
+**Next run: point `dataset.repo_id` at it.**
+
+```json
+"dataset": { "repo_id": "lucarp/so101_cube_session2_clean", "use_imagenet_stats": false }
+```
+
+Then update `policy.dataset_stats.observation.state` min/max from that dataset's
+meta/stats.json (the current values came from the old 24-demo set).
+
+**Not merged with the original 24.** The session-2 dataset comes from a replay-buffer
+dump and lacks metadata columns `lerobot-edit-dataset --operation.type merge` requires
+(`meta/episodes/chunk_index`). Aligning the feature schema fixed two rounds of errors and
+a third appeared. Not worth more conversions for +26% data.
+
+Derivation chain, if it ever needs redoing:
+```
+outputs/hilserl_cube_run1/dataset            (115 eps, raw buffer dump)
+  -> delete_episodes [23 without success]    -> so101_cube_session2_success (92)
+  -> convert_image_to_video                  -> so101_cube_session2_vid
+  -> remove_feature is_intervention          -> so101_cube_session2_clean
+```
+
+Also resume the policy rather than starting cold:
+`checkpoints/0014000` holds 14,000 optimization steps.
