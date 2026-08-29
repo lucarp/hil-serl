@@ -1,3 +1,38 @@
+# READ FIRST — landmines (2026-08-29)
+
+**1. Never start a FRESH run without fixing the uint8 bug first.**
+A fresh run (`resume: false`, or any new `output_dir`) loads the demos through
+`make_dataset(..., return_uint8=True)` (`datasets/factory.py:192,204`). The replay
+buffer pre-allocates `torch.empty(...)` = float32 (`rl/buffer.py:147`), so uint8
+`[0,255]` lands as float `[0.0, 255.0]` and nothing divides by 255. The policy
+normalizer expects `[0,1]` with ImageNet stats, so **the demo half of every batch —
+50% of all training signal — goes in 255x overscaled.** Measured:
+
+```
+RESUME (dataset_offline, plain)      float32 [0.000, 0.604]   correct
+FRESH  (make_dataset, return_uint8)  uint8   [0, 154]         255x overscale
+```
+
+This is what made the 08-26 session show no learning at all. The 08-28 fix repaired
+the *dump* path (`to_lerobot_dataset` now writes uint8), so **resumed** runs load
+correctly — the fresh path is still broken. Fix before any fresh run: normalize to
+`[0,1]` when filling the buffer, or drop `return_uint8` on the RL path.
+
+**2. A fresh start needs a NEW `output_dir`.** `validate()` refuses to reuse an
+existing one for a non-resume run. Do NOT `rm -rf` the outputs dir to force it —
+that destroys every checkpoint and both buffers.
+
+**3. While `resume: true`, edits to `configs/real/train_config.json` are IGNORED.**
+`handle_resume_logic` returns the config stored inside the checkpoint
+(`checkpoints/last/pretrained_model/train_config.json`). They happen to match today.
+To change the workspace box, step sizes, etc. while resuming, edit the checkpoint's
+copy too — or verify the values in the startup log.
+
+**4. Launch the learner from the repo root.** `learner.py:762` builds the pretrained
+path from the relative `output_dir`; a different cwd makes `from_pretrained` fail.
+
+---
+
 # Resume here — 2026-08-25
 
 ## Where things stand
@@ -255,3 +290,132 @@ llama-server --model ~/local-llm/models/Qwen3.8-27B-UD-Q4_K_XL.gguf --alias qwen
 The sim reached 100% after ~1,900 episodes / 32,000 steps. You are at 230 episodes with a
 policy that has seen 24,000 steps. Episodes, not gradient steps, are the scarce resource:
 ~200/hour on hardware. Budget several accumulated hours, and resume every time.
+
+---
+
+# Session 2026-08-28 — the resume bug is found and fixed; resume is now actually safe
+
+"Set resume: true" (above) was a trap: the resume path had never been exercised (every
+session so far was a cold start) and it was broken in two places. Fixed in
+vendor/lerobot on local/hilserl (uncommitted — commit if you like; still never push):
+
+1. **Learner silently re-randomized the policy on resume.** `handle_resume_logic`
+   (rl/learner.py) swaps in the checkpoint's own config, which stores
+   `pretrained_path: null`, so `make_policy()` built a fresh random policy while
+   `load_training_state` restored the stale optimizer moments, target networks and
+   step counter. Verified empirically: with the old code, 0/72 tensors matched the
+   checkpoint after "resume". Worse than a cold start. Fix: point `pretrained_path`
+   at `checkpoints/last/pretrained_model`.
+2. **Actor crashed at startup with resume: true.** `validate()` resolves a resume
+   checkpoint from `--config_path`, which for the actor is just the shared config
+   file — so `pretrained_path` became the config's parent dir and `make_policy`
+   died with FileNotFoundError. Fix (rl/actor.py): clear `pretrained_path` after
+   validate; the actor's policy is scaffolding, real weights arrive via RPC.
+3. **Actor's first episode ran on random weights** (it only pulled learner
+   parameters at episode boundaries). Fix (rl/actor.py): block on the learner's
+   initial parameter push (60 s timeout) before the first action, so a resumed
+   session acts on the trained policy from episode 1.
+
+Verified against the real checkpoint on CPU (llama-server still had the GPU):
+72/72 policy tensors match 0024000 after the fixed resume path, training state
+loads (step 24,000), actor scaffolding builds without the crash. WandB: run
+opp47yi6 is `crashed`, not `finished`, so the learner's `resume="must"` re-attaches
+to the same run and the metrics timeline continues.
+
+`"resume": true` is now set in configs/real/train_config.json. Every launch now
+resumes from `outputs/hilserl_cube_run1/checkpoints/last`. A genuinely fresh run
+requires changing `output_dir` (validate() enforces it) — do NOT rm the outputs
+dir to get a fresh start.
+
+## Resume commands (run after killing llama-server)
+
+**Copy-paste version for a real terminal: `RESUME_COMMANDS.md` in the repo root**
+(step 0 = kill llama-server, step 6 = bring it back with
+`nohup ~/local-llm/run-llama-server.sh`). The block below is the same thing, terse.
+
+```bash
+ls /dev/so101_follower && lsusb | grep -q 045e && echo pad ok
+
+cd /mnt/Storage/projects/hil-serl
+set -a && . ./.env && set +a && source .venv/bin/activate
+
+# terminal 1 — learner (resumes from 0024000, wandb run opp47yi6)
+python -m lerobot.rl.learner --config_path configs/real/train_config.json
+
+# terminal 2 — actor
+python -m lerobot.rl.actor --config_path configs/real/train_config.json \
+    --output_dir=outputs/hilserl_cube_run1_actor
+```
+
+Watch at startup:
+- Learner: `Valid checkpoint found: resume=True detected` and `Resuming from step
+  24000`, then `Loading weights from local directory` — and NOT `instantiating a
+  policy from scratch`.
+- Actor: `[ACTOR] Loaded initial parameters from Learner before first action.`
+- `Optimization frequency loop [Hz]` should be ~10 with the GPU free.
+
+---
+
+# Session 2026-08-28 (late) — float-image fix, crash-safe checkpoints, dataset_offline recovered
+
+## The last blocker: float images killed every buffer dump
+
+The 08-26 run's online buffer dump only survived because the online buffer happened to
+hold float images in [0,1] (writer accepts [0,1] or uint8). The **offline** buffer dump
+always failed: `initialize_offline_replay_buffer` (fresh branch) loads the demo dataset
+through `make_dataset(..., return_uint8=True)`, so its frames are in [0,255] — the writer
+rejected them (598 errors) and `dataset_offline/` was left half-written (images/ + meta/,
+no data/). That is the pre-existing pipeline bug: the 08-26 run trained 10,347 demo
+frames through the normalizer 255x overscaled (garbage offline signal).
+
+**Fixed in `rl/buffer.py to_lerobot_dataset`:** image tensors are normalized to uint8
+before the writer (values > 1.0 are treated as [0,255] and scaled; then *255, round,
+clamp). A plain reload turns uint8 back into float [0,1]. Steady state is [0,1]
+everywhere; both [0,1] and [0,255] inputs are accepted from now on.
+
+## Checkpointing is now crash-safe (verified by kill -9)
+
+In `rl/learner.py` + `common/train_utils.py` (vendor/lerobot, local/hilserl, uncommitted):
+
+- Buffer dumps are atomic: write to `<dataset>.partial`, `os.rename` to final. A crash
+  mid-dump leaves the previous good final in place.
+- `_recover_dataset_dir` self-heals the one gap: if the final dir is gone but a
+  `<dataset>.old` exists (we renamed it aside mid-save), it is renamed back before any
+  load or new dump.
+- `checkpoints/last` is updated via a temp symlink + `os.replace` (no window where it
+  is missing or dangling).
+- Order in `save_training_checkpoint`: weights -> training state -> `last` -> buffer
+  dumps (inside try/except). The policy is always resumable even if a dump fails.
+
+## Validation — all PASS
+
+- T1 roundtrip: mixed [0,1]/[0,255] buffer -> 0 writer errors (was 598) -> reload
+  25/25, all images float32 [0,1].
+- T2 crash: kill -9 mid-dump -> previous final intact; rename-gap self-heal restores
+  `.old` -> final; stale `.partial` cleaned.
+- T3a checkpoint: fixed resume path loads 72/72 tensors from 0024000 exactly (max diff
+  vs fresh init 14.06 — really trained, not re-randomized), step counter 24000.
+- T3 full CPU resume-load of BOTH real buffers (what production does at startup):
+  online 12,000 frames, offline 10,347 frames, every image float32 in [0.0, 1.0].
+
+**Consequence: a resumed run now also restores the online AND offline buffers** (the
+old "resume loses everything the policy has experienced" note above no longer applies).
+Startup takes a couple extra minutes to load them.
+
+## dataset_offline/ was recovered
+
+Rebuilt through the production path (`make_dataset` -> `ReplayBuffer` ->
+`to_lerobot_dataset` atomic dump): 10,347 frames / 92 episodes, verified by the same
+resume-load (float [0,1]). Layout note for the curious: v3.0 "image" dtype stores PNG
+**bytes inline in the parquet** (`data/chunk-*/file-*.parquet`, ~187M); the `images/`
+dir is an empty shell, there are no mp4s. `dataset/` (online) has the identical layout.
+
+## Housekeeping
+
+- Full pre-recovery backup: `outputs/hilserl_cube_run1.bak-20260828/` (889M).
+- Code snapshot branch `backup/snapshot-pre-recovery-20260828` (= 5c064338, uncommitted).
+  Never push either.
+- The recovery job that appeared to "die silently" on 08-28 was not a crash or OOM:
+  opencode's bash tool kills the process group of backgrounded commands at 120 s.
+  `nohup` does not survive that; launch long jobs with `setsid`.
+- Bot token shared in chat earlier — still revoke it via @BotFather.
