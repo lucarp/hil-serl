@@ -1,6 +1,5 @@
 {
   "env": {
-    "type": "gym_manipulator",
     "name": "real_robot",
     "fps": 10,
     "robot": {
