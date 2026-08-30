@@ -27,7 +27,7 @@
           "backend": 200
         }
       },
-      "max_relative_target": 10.0
+      "max_relative_target": 8.0
     },
     "teleop": {
       "type": "gamepad",
@@ -70,7 +70,7 @@
           "min": [
             0.09,
             -0.09,
-            0.0
+            0.015
           ],
           "max": [
             0.32,
@@ -81,7 +81,7 @@
         "end_effector_step_sizes": {
           "x": 0.02,
           "y": 0.02,
-          "z": 0.01
+          "z": 0.008
         }
       }
     }
