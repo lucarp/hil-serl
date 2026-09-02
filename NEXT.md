@@ -1,4 +1,15 @@
-# READ FIRST — landmines (2026-08-29)
+# READ FIRST — landmines
+
+**0. Operator rescue + a finite online buffer degrades the policy.**
+Observed twice. The policy improves, falters, you intervene more to rescue it, those
+intervened frames fill the finite online buffer and evict the autonomous episodes, the
+policy loses its own successful experience and depends on you more. Episode reward stays
+HIGH throughout (you are rescuing), so it is invisible unless you count autonomous
+episodes specifically. Full write-up with the numbers:
+`docs/2026-09-02-intervention-feedback-loop.md`.
+When it starts failing, **stop rescuing** — let failures stand.
+
+## Earlier landmines (2026-08-29)
 
 **1. Never start a FRESH run without fixing the uint8 bug first.**
 A fresh run (`resume: false`, or any new `output_dir`) loads the demos through
