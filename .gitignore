@@ -10,3 +10,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# third-party clone: SO-ARM100 URDF/meshes (333M, its own git repo)
+# get it with: git clone https://github.com/TheRobotStudio/SO-ARM100 assets/SO-ARM100
+assets/
